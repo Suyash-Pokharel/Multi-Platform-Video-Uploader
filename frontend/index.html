@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidFlow - Scheduler</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <!-- Your Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Main Upload Flow Section -->
+        <div id="mainFlowContainer">
+            <!-- Restore Draft Notification Bar -->
+            <div class="restore-draft-bar" id="restoreDraftBar" style="display: none;">
+                <p>👋 Welcome back! Would you like to restore your unsaved draft?</p>
+                <div class="restore-draft-actions">
+                    <button id="restoreDraftBtn" class="restore-btn">Restore</button>
+                    <button id="dismissDraftBtn" class="dismiss-btn">Dismiss</button>
+                </div>
+            </div>
+
+            <div class="upload-section" id="mainUploadSection">
+                <h1 style="text-align: center; margin-bottom: 1.5rem; font-weight: 600; font-size: 1.5rem;">Upload Your
+                    Video</h1>
+                <div class="drop-zone" id="videoDropZone" role="group" aria-label="Video Upload Area">
+                    <div class="video-preview" id="videoPreview" aria-live="polite">
+                        <span class="file-info"></span>
+                    </div>
+                    <button class="remove-btn" id="removeVideoBtn" title="Remove Video"
+                        aria-label="Remove selected video">×</button>
+                    <p>📼 Drag & Drop Video File Here</p>
+                    <p>Max resolution: 3840×2160</p>
+                    <button id="browseVideoBtn">
+                        <span class="button-text">Browse Files</span>
+                        <div class="loading-spinner" aria-hidden="true"></div>
+                    </button>
+                    <input type="file" id="videoInput" hidden accept="video/mp4,video/quicktime,video/x-msvideo,video/*"
+                        aria-describedby="videoErrorMsgElement">
+                    <div class="error-message" id="videoErrorMsgElement" role="alert" aria-live="assertive"></div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-bar-container" id="progressBarContainer" aria-hidden="true">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+
+                <div id="uploadStatus" style="text-align: center; margin-top: 1rem; color: var(--on-surface-secondary);"
+                    aria-live="polite"></div>
+            </div>
+        </div>
+
+        <!-- Success Screen -->
+        <div class="success-section" id="successSection" style="display: none;">
+            <h2>✅ Success!</h2>
+            <p>Your video has been successfully scheduled for publishing.</p>
+            <button id="scheduleAnotherBtn">Schedule Another Video</button>
+        </div>
+
+
+        <!-- Video Preview Modal -->
+        <div class="modal" id="videoPreviewModal" role="dialog" aria-modal="true"
+            aria-labelledby="videoPreviewModalTitle" aria-hidden="true">
+            <div class="modal-content">
+                <button class="close-btn" id="closePreviewModalBtn" title="Cancel Upload"
+                    aria-label="Close video preview and cancel upload">×</button>
+                <h2 id="videoPreviewModalTitle">Video Preview</h2>
+                <div id="videoPreviewContainer">
+                    <button class="remove-btn" id="removePreviewVideoBtn" title="Remove Video"
+                        aria-label="Remove selected video from preview">×</button>
+                </div>
+                <div class="modal-actions">
+                    <button id="generateThumbBtn">
+                        <span class="button-text">🖼️ Select this as Thumbnail</span>
+                        <div class="loading-spinner" aria-hidden="true"></div>
+                    </button>
+                    <button id="nextToConfigBtn">
+                        <span class="button-text">Next</span>
+                        <div class="loading-spinner" aria-hidden="true"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Modal -->
+        <div class="modal" id="configModal" role="dialog" aria-modal="true" aria-labelledby="configModalTitle"
+            aria-hidden="true">
+            <div class="modal-content">
+                <button class="close-btn" id="closeConfigModalBtn" title="Close Configuration"
+                    aria-label="Close configuration">×</button>
+                <h2 id="configModalTitle">Post Configuration</h2>
+
+                <div class="thumbnail-section form-group">
+                    <label>Thumbnail (Optional, Max 1920x1080)</label>
+                    <div class="drop-zone" id="thumbnailDropZone" role="group" aria-label="Thumbnail Upload Area">
+                        <button class="remove-btn" id="removeThumbBtn" title="Remove Thumbnail"
+                            aria-label="Remove selected thumbnail">×</button>
+                        <p>🖼️ Drag & Drop Thumbnail</p>
+                        <p>Max resolution: 1920×1080</p>
+                        <button id="browseThumbnailBtn">
+                            <span class="button-text">Browse Thumbnail</span>
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                        </button>
+                        <input type="file" id="thumbnailInput" hidden accept="image/jpeg,image/png,image/webp,image/*"
+                            aria-describedby="thumbErrorMsgElement">
+                        <div class="error-message" id="thumbErrorMsgElement" role="alert" aria-live="assertive"></div>
+                        <div class="thumbnail-preview" id="thumbnailPreview"></div>
+                    </div>
+                </div>
+
+                <form id="postForm" novalidate>
+                    <div class="form-group">
+                        <label for="postTitle">Title <span class="inline-error" id="titleError">Title is
+                                required.</span></label>
+                        <input type="text" id="postTitle" required placeholder="Enter the title">
+                    </div>
+                    <div class="form-group">
+                        <label for="postDescription">Description <span class="inline-error"
+                                id="descriptionError">Description is required.</span></label>
+                        <textarea id="postDescription" rows="4" required placeholder="Describe the video..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="postTags">Tags (insert space to write new tags)</label>
+                        <input type="text" id="postTags" placeholder="#example #tag">
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleTime">Schedule Time <span class="inline-error" id="scheduleError">Schedule
+                                time is required.</span></label>
+                        <input type="text" id="scheduleTime" required placeholder="Select date & time">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" id="goToPlatformsBtn">
+                            <span class="button-text">Select Platforms</span>
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                        </button>
+                    </div>
+                    <div id="configSubmitStatus"
+                        style="text-align: center; margin-top: 1rem; color: var(--on-surface-secondary);" role="status"
+                        aria-live="polite"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Platform Selection Modal -->
+        <div class="modal" id="platformModal" role="dialog" aria-modal="true" aria-labelledby="platformModalTitle"
+            aria-hidden="true">
+            <div class="modal-content">
+                <button class="close-btn" id="closePlatformModalBtn" title="Cancel Scheduling"
+                    aria-label="Cancel scheduling and close platform selection">×</button>
+                <h2 id="platformModalTitle">Select Platforms to Publish</h2>
+                <div class="platform-selection-grid" id="platformSelectionGrid">
+                    <!-- Platform buttons remain the same -->
+                    <button class="platform-button" data-platform="youtube" type="button" aria-pressed="false">
+                        <img src="https://pngfre.com/wp-content/uploads/You-Tube-6.png" alt="YouTube Logo">
+                        <span>YouTube</span>
+                    </button>
+                    <button class="platform-button" data-platform="instagram" type="button" aria-pressed="false">
+                        <img src="https://www.freepnglogos.com/uploads/instagram-icon-png/instagram-app-icon-instagram-logos-brand-17.png" alt="Instagram Logo">
+                        <span>Instagram</span>
+                    </button>
+                    <button class="platform-button" data-platform="tiktok" type="button" aria-pressed="false">
+                        <img src="https://pngimg.com/uploads/tiktok/tiktok_PNG4.png" alt="TikTok Logo">
+                        <span>TikTok</span>
+                    </button>
+                    <button class="platform-button" data-platform="x" type="button" aria-pressed="false">
+                        <img src="https://www.freepnglogos.com/uploads/twitter-x-logo-png/twitter-x-logo-png-9.png" alt="X Logo">
+                        <span>X</span>
+                    </button>
+                    <button class="platform-button" data-platform="linkedin" type="button" aria-pressed="false">
+                        <img src="https://www.freepnglogos.com/uploads/official-linkedin-logo----17.png" alt="LinkedIn Logo">
+                        <span>LinkedIn</span>
+                    </button>
+                    <button class="platform-button" data-platform="threads" type="button" aria-pressed="false">
+                        <img src="https://static.vecteezy.com/system/resources/previews/026/845/724/non_2x/threads-social-media-logo-icon-free-png.png" alt="Threads Logo">
+                        <span>Threads</span>
+                    </button>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="confirmPlatformsBtn">
+                        <span class="button-text">Confirm & Schedule</span>
+                        <div class="loading-spinner" aria-hidden="true"></div>
+                    </button>
+                </div>
+                <div id="platformSubmitStatus"
+                    style="text-align: center; margin-top: 1rem; color: var(--on-surface-secondary);" role="status"
+                    aria-live="polite"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- Your App Script (defer ensures it runs after HTML is parsed) -->
+    <script src="script.js" defer></script>
+</body>
+
+</html>

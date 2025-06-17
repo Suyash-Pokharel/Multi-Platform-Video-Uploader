@@ -1,0 +1,17 @@
+# Ignore environment files
+backend/.env
+
+# Node modules (both frontend & backend if you ever npm-install there)
+**/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs (if any)
+dist/
+build/
