@@ -2,60 +2,78 @@
     const express = require("express");
     const cors = require("cors");
     const multer = require("multer");
-    const B2 = require('backblaze-b2');
+    const B2 = require("backblaze-b2");
     const sqlite3 = require("sqlite3").verbose();
     const path = require("path");
+    const session = require("express-session");
 
     const app = express();
+
+    // Middleware
     app.use(cors({ origin: "*" }));
     app.use(express.json());
 
-    const session = require("express-session");
-    app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    }));
+    app.use(
+    session({
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        },
+    })
+    );
 
     app.use((req, res, next) => {
-        console.log("Session ID:", req.sessionID);
-        next();
+    console.log("Session ID:", req.sessionID);
+    next();
     });
 
+    // File upload
+    const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 100 * 1024 * 1024 }, // Max 100MB
+    });
 
-    // In-memory multer (be careful of RAM if files are huge)
-    const upload = multer({ storage: multer.memoryStorage() });
+    // Backblaze B2
     const b2 = new B2({
     applicationKeyId: process.env.B2_ACCOUNT_ID,
-    applicationKey: process.env.B2_APP_KEY
+    applicationKey: process.env.B2_APP_KEY,
     });
 
-
-    // Initialize SQLite
+    // SQLite setup
     const dbFile = path.join(__dirname, "data.sqlite");
-    const db = new sqlite3.Database(dbFile);
+    const db = new sqlite3.Database(dbFile, (err) => {
+    if (err) console.error("DB connection failed:", err);
+    else console.log("✅ SQLite DB connected");
+    });
+
     db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS scheduled_videos (
-        id INTEGER PRIMARY KEY,
-        user_id INTEGER,
-        video_b2_name TEXT NOT NULL,
-        thumb_b2_name TEXT,
-        title TEXT NOT NULL,
-        description TEXT,
-        tags TEXT,
-        schedule_time DATETIME NOT NULL,
-        platforms TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            video_b2_name TEXT NOT NULL,
+            thumb_b2_name TEXT,
+            title TEXT NOT NULL,
+            description TEXT,
+            tags TEXT,
+            schedule_time DATETIME NOT NULL,
+            platforms TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
     });
 
-    // Helper to get B2 upload URL
+    // B2 upload helper
     async function getB2UploadUrl() {
     await b2.authorize();
-    return b2
-        .getUploadUrl({ bucketId: process.env.B2_BUCKET_ID })
+    const { uploadUrl, authorizationToken } = await b2
+        .getUploadUrl({
+        bucketId: process.env.B2_BUCKET_ID,
+        })
         .then((r) => r.data);
+    return { uploadUrl, authorizationToken };
     }
 
     // Upload endpoint
@@ -67,10 +85,13 @@
     ]),
     async (req, res) => {
         try {
-        // 1) Get B2 URL + token
+        if (!req.files || !req.files.video || !req.files.video[0]) {
+            return res.status(400).json({ error: "Video file is required" });
+        }
+
         const { uploadUrl, authorizationToken } = await getB2UploadUrl();
 
-        // 2) Upload video
+        // Upload video
         const videoFile = req.files.video[0];
         const vidB2 = await b2.uploadFile({
             uploadUrl,
@@ -79,7 +100,7 @@
             data: videoFile.buffer,
         });
 
-        // 3) Optionally upload thumbnail
+        // Upload thumbnail
         let thumbName = null;
         if (req.files.thumbnail) {
             const thumbFile = req.files.thumbnail[0];
@@ -92,24 +113,32 @@
             thumbName = thumbB2.data.fileName;
         }
 
-        // 4) Persist schedule metadata
+        // Form fields
         const {
             title,
             description = "",
             tags = "",
             scheduleTime,
             platforms,
-            userId = null
+            userId = null,
         } = req.body;
+
         if (!title || !scheduleTime || !platforms) {
-            return res.status(400).json({ error: "Missing required fields: title, scheduleTime, or platforms." });
+            return res
+            .status(400)
+            .json({
+                error:
+                "Missing required fields: title, scheduleTime, or platforms.",
+            });
         }
+
         db.run(
-            `INSERT INTO scheduled_videos
-        (user_id,video_b2_name,thumb_b2_name,title,description,tags,schedule_time,platforms)
-        VALUES (?,?,?,?,?,?,?,?)`,
+            `
+            INSERT INTO scheduled_videos
+            (user_id, video_b2_name, thumb_b2_name, title, description, tags, schedule_time, platforms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-            userId || null,
+            userId,
             vidB2.data.fileName,
             thumbName,
             title,
@@ -120,8 +149,8 @@
             ],
             function (err) {
             if (err) {
-            console.error("DB error:", err);
-            return res.status(500).json({ error: "Database insert failed" });
+                console.error("DB error:", err);
+                return res.status(500).json({ error: "Database insert failed" });
             }
             res.json({ success: true, id: this.lastID });
             }
@@ -134,4 +163,4 @@
     );
 
     const PORT = process.env.PORT || 4000;
-    app.listen(PORT, () => console.log(`🚀 Backend listening on ${PORT}`));
+    app.listen(PORT, () => console.log(`🚀 Backend listening on port ${PORT}`));
