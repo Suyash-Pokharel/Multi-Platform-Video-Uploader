@@ -1,3 +1,6 @@
+const BACKEND_URL = "https://multi-platform-video-uploader.onrender.com";
+
+
     document.addEventListener("DOMContentLoaded", () => {
     const elements = {
         mainFlowContainer: document.getElementById("mainFlowContainer"),
@@ -46,6 +49,10 @@
         restoreDraftBar: document.getElementById("restoreDraftBar"),
         restoreDraftBtn: document.getElementById("restoreDraftBtn"),
         dismissDraftBtn: document.getElementById("dismissDraftBtn"),
+        // New confirm-remove-upload modal elements
+        confirmRemoveModal: document.getElementById("confirmRemoveModal"),
+        confirmRemoveBtn:   document.getElementById("confirmRemoveBtn"),
+        cancelRemoveBtn:    document.getElementById("cancelRemoveBtn"),
     };
 
     let state = {
@@ -57,6 +64,7 @@
         pendingFormData: null,
         selectedPlatforms: [],
         isSubmitting: false,
+        uploadXhr: null, 
     };
 
     const DRAFT_STORAGE_KEY = "vidflow_draft_v1";
@@ -64,14 +72,6 @@
     function initializeApp() {
         setupEventListeners();
         setMinScheduleTime();
-
-        // Initialize Flatpickr date/time picker
-        flatpickr(elements.scheduleTimeInput, {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
-        minDate: new Date(),
-        minuteIncrement: 1,
-        });
 
         // Set initial states for UI elements
         elements.videoPreviewModal.setAttribute("aria-hidden", "true");
@@ -100,12 +100,23 @@
         handleThumbnailFileSelect,
         elements.thumbErrorMsg,
         "image"
-        );
-        elements.removeVideoBtn.addEventListener("click", clearVideoSelection);
-        elements.removePreviewVideoBtn.addEventListener(
-        "click",
-        clearVideoSelection
-        );
+                );
+        // When clicking the ✕ on the drop‑zone or preview
+        elements.removeVideoBtn.addEventListener("click", () => showModal(elements.confirmRemoveModal));
+        elements.removePreviewVideoBtn.addEventListener("click", () => showModal(elements.confirmRemoveModal));
+
+        // Modal buttons
+        elements.confirmRemoveBtn.addEventListener("click", () => {
+        // Abort and cleanup
+        if (state.uploadXhr) state.uploadXhr.abort();
+        clearVideoSelection();
+        hideModal(elements.confirmRemoveModal);
+        });
+        elements.cancelRemoveBtn.addEventListener("click", () => {
+        // Just close the modal, continue upload
+        hideModal(elements.confirmRemoveModal);
+        });
+
         elements.removeThumbBtn.addEventListener("click", clearThumbnailSelection);
         elements.nextToConfigBtn.addEventListener("click", showConfigModal);
         elements.goToPlatformsBtn.addEventListener("click", handleGoToPlatforms);
@@ -124,12 +135,15 @@
         "click",
         cancelPlatformSelection
         );
-        elements.videoPreviewModal.addEventListener(
-        "click",
-        handleModalBackdropClick
-        );
+        elements.videoPreviewModal.addEventListener("click", handleModalBackdropClick);
         elements.configModal.addEventListener("click", handleModalBackdropClick);
         elements.platformModal.addEventListener("click", handleModalBackdropClick);
+
+        // Close confirm-remove modal on outside click
+        elements.confirmRemoveModal.addEventListener("click", (e) => {
+        if (e.target === elements.confirmRemoveModal) hideModal(elements.confirmRemoveModal);
+        });
+
         elements.postForm.addEventListener("submit", (e) => e.preventDefault());
 
         // This is your original, working tag formatter
@@ -383,6 +397,9 @@
     function closeModal(modalElement) {
         modalElement.setAttribute("aria-hidden", "true");
         modalElement.classList.remove("open");
+    }    
+    function hideModal(modal) {
+        closeModal(modal);
     }
     function handleModalBackdropClick(e) {
         if (e.target === elements.videoPreviewModal) {
@@ -416,24 +433,40 @@
     }
 
     function clearVideoSelection() {
+        // 1) Hide progress UI and clear status
+        elements.progressBarContainer.setAttribute("aria-hidden", "true");
+        showStatusMessage(elements.uploadStatus, "", "info");
+
+        // 2) Remove the video preview
         closeModal(elements.videoPreviewModal);
         state.currentVideoFile = null;
         safeRevokeObjectURL(state.currentVideoObjectURL);
         state.currentVideoObjectURL = null;
         elements.videoDropZone.classList.remove("has-file", "error", "active");
         elements.videoPreviewDiv.querySelector(".file-info").textContent = "";
-        clearError(
-        elements.videoDropZone,
-        elements.videoErrorMsg,
-        elements.videoInput
-        );
+        clearError(elements.videoDropZone, elements.videoErrorMsg, elements.videoInput);
         elements.videoInput.value = "";
         if (state.videoPreviewElement) {
-        state.videoPreviewElement.remove();
-        state.videoPreviewElement = null;
+            state.videoPreviewElement.remove();
+            state.videoPreviewElement = null;
         }
-        if (elements.removePreviewVideoBtn)
-        elements.removePreviewVideoBtn.style.display = "none";
+        if (elements.removePreviewVideoBtn) {
+            elements.removePreviewVideoBtn.style.display = "none";
+        }
+        
+        // 3) ALSO remove the thumbnail preview
+        clearThumbnailSelection();
+
+        // 4) RESET upload state so nothing thinks an upload is running
+        if (state.uploadXhr) {
+            state.uploadXhr.abort();      // just in case
+            state.uploadXhr = null;
+        }
+        state.isSubmitting = false;
+        state.pendingFormData = null;
+        toggleButtonState(elements.confirmPlatformsBtn, false);
+        
+        // 5) Clear any saved draft UI
         clearDraft();
         showRestoreBar(false);
     }
@@ -528,6 +561,7 @@
     }
 
     function handlePlatformToggle(e) {
+        showStatusMessage(elements.platformSubmitStatus, "", "info");
         const button = e.target.closest(".platform-button");
         if (!button) return;
         const platform = button.dataset.platform;
@@ -585,7 +619,8 @@
     // 2) Only one uploadToServer helper:
     function uploadToServer(formData) {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://YOUR‑RENDER‑URL/api/upload', true); 
+    state.uploadXhr = xhr;
+    xhr.open("POST", `${BACKEND_URL}/api/upload`, true);
     xhr.upload.onprogress = e => {
         if (e.lengthComputable) {
         const pct = Math.round(e.loaded / e.total * 100);
@@ -606,6 +641,11 @@
     }
 
     function showSuccessScreen() {
+        state.isSubmitting = false;
+        state.uploadXhr = null;
+        state.pendingFormData = null;
+        toggleButtonState(elements.confirmPlatformsBtn, false);
+
         elements.mainFlowContainer.style.display = "none";
         elements.successSection.style.display = "block";
         elements.uploadStatus.textContent = "";
@@ -768,15 +808,12 @@
     }
     function setMinScheduleTime() {
         try {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() + 1);
-        const localDateTime = new Date(
-            now.getTime() - now.getTimezoneOffset() * 60000
-        );
-        const minDateTime = localDateTime.toISOString().slice(0, 16);
-        elements.scheduleTimeInput.min = minDateTime;
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 1);
+            const localDateTime = now.toISOString().slice(0, 16);
+            elements.scheduleTimeInput.min = localDateTime;
         } catch (e) {
-        console.error("Error setting min schedule time:", e);
+            console.error("Error setting min schedule time:", e);
         }
     }
     function safeRevokeObjectURL(url) {

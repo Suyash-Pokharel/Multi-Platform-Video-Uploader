@@ -11,15 +11,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-    <!-- Flatpickr CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
     <!-- Your Stylesheet -->
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-    <div class="container">
+    <div id="app" class="container">
         <!-- Main Upload Flow Section -->
         <div id="mainFlowContainer">
             <!-- Restore Draft Notification Bar -->
@@ -137,7 +134,7 @@
                     <div class="form-group">
                         <label for="scheduleTime">Schedule Time <span class="inline-error" id="scheduleError">Schedule
                                 time is required.</span></label>
-                        <input type="text" id="scheduleTime" required placeholder="Select date & time">
+                        <input  type="datetime-local"  id="scheduleTime"  name="scheduleTime"  required/>
                     </div>
                     <div class="modal-actions">
                         <button type="button" id="goToPlatformsBtn">
@@ -198,9 +195,16 @@
             </div>
         </div>
     </div>
-
-    <!-- Flatpickr JS -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <div class="modal" id="confirmRemoveModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+        <h2>Confirm Removal</h2>
+        <p>Do you want to remove the video and stop the upload?</p>
+        <div class="modal-actions">
+        <button id="confirmRemoveBtn">Remove</button>
+        <button id="cancelRemoveBtn">Continue Upload</button>
+        </div>
+    </div>
+    </div>
 
     <!-- Your App Script (defer ensures it runs after HTML is parsed) -->
     <script src="script.js" defer></script>

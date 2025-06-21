@@ -1,24 +1,57 @@
 {
     "name": "multi-platform-video-uploader",
     "version": "1.0.0",
-    "description": "multi-platform-video-uploader scheduling backend",
+    "description": "Backend for scheduling and uploading videos to multiple platforms using Backblaze B2, Express, and OAuth.",
     "main": "index.js",
     "type": "commonjs",
     "scripts": {
-        "start": "node index.js"
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+    },
+    "keywords": [
+        "video",
+        "upload",
+        "scheduler",
+        "node",
+        "express",
+        "backblaze",
+        "b2",
+        "oauth",
+        "passport",
+        "sqlite",
+        "cron",
+        "google",
+        "tiktok",
+        "facebook"
+    ],
+    "author": "Suyash Pokharel",
+    "license": "ISC",
+    "homepage": "https://github.com/Suyash-Pokharel/Multi-Platform-Video-Uploader#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Suyash-Pokharel/Multi-Platform-Video-Uploader.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Suyash-Pokharel/Multi-Platform-Video-Uploader/issues"
     },
     "dependencies": {
         "backblaze-b2": "^1.7.1",
         "cors": "^2.8.5",
-        "dotenv": "^16.0.0",
-        "express": "^4.18.2",
+        "dotenv": "^16.5.0",
+        "express": "^4.21.2",
+        "express-session": "^1.18.1",
         "googleapis": "^150.0.1",
         "multer": "^1.4.5-lts.1",
-        "node-cron": "^3.0.2",
+        "node-cron": "^3.0.3",
         "passport": "^0.6.0",
         "passport-facebook": "^3.0.0",
         "passport-google-oauth20": "^2.0.0",
-        "sqlite3": "^5.1.2",
-        "express-session": "^1.17.3"
+        "sqlite3": "^5.1.7"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.3"
+    },
+    "engines": {
+        "node": ">=18"
     }
 }

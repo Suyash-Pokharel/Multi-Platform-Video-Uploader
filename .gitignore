@@ -1,17 +1,28 @@
-# Ignore environment files
+# Environment variables
+.env
+**/.env
 backend/.env
 
-# Node modules (both frontend & backend if you ever npm-install there)
+# Node.js dependencies
+node_modules/
 **/node_modules/
 
 # Logs
-*.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
 
-# OS files
+# OS-specific files
 .DS_Store
 Thumbs.db
 
-# Build outputs (if any)
+# Build output
 dist/
 build/
+
+# SQLite database (optional – comment out if you want to keep this in Git)
+backend/data.sqlite
+
+# Optional: VSCode settings (can be useful to ignore in teams)
+.vscode/
